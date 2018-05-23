@@ -1,0 +1,6 @@
+---
+features:
+  - Add support for Mellanox InfiniBand NICs in IPA.
+    Each Mellanox InfiniBand interface is returned with
+    an "InfiniBand MAC" and InfiniBand Client-ID calculated
+    according to a Mellanox-specific translation.

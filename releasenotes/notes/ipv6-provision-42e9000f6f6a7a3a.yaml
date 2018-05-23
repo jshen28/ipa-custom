@@ -1,0 +1,6 @@
+---
+fixes:
+  - If using Linux-IO, ISCSI targets now support deploying over
+    an IPv6 network if booted into an IPv6 enabled kernel. IPv6 will
+    be used for deployments for all traffic between ironic and IPA
+    if IPA is passed an IPv6 address in the Ironic API URL.

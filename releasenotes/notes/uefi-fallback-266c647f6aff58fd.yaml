@@ -1,0 +1,6 @@
+---
+fixes:
+  - When writing a partition image, IPA now
+    installs grub to the UEFI fallback path (e.g. ``EFI/BOOT/BOOTX64.EFI``).
+    The fallback path is used to boot the bare metal node if the NVRAM is
+    reset.

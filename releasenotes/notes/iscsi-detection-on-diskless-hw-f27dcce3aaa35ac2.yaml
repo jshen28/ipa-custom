@@ -1,0 +1,5 @@
+---
+fixes:
+  - Upon initialization of the agent, an attempt to identify and
+    initialize any configured hardware iSCSI initiators is performed
+    prior to detecting disks.
