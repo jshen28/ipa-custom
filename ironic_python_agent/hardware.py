@@ -532,8 +532,8 @@ class HardwareManager(object):
         hardware_info['bmc_address'] = self.get_bmc_address()
         hardware_info['system_vendor'] = self.get_system_vendor_info()
         hardware_info['boot'] = self.get_boot_info()
-        hardware_info['pdisks'] = self.get_physical_disk()
-        hardware_info['virtual_drives'] = self.get_virtual_drive()
+        # hardware_info['pdisks'] = self.get_physical_disk()
+        # hardware_info['virtual_drives'] = self.get_virtual_drive()
         return hardware_info
 
     def get_clean_steps(self, node, ports):
