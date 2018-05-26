@@ -59,12 +59,12 @@ def config_raid(data):
     raid_utils.config_raid(server_type)
 
 
-def call_arobot():
+def call_arobot(sn):
     LOG.info('Getting ipmi conf from %s', CONF.arobot_callback_url)
 
     verify, cert = utils.get_ssl_client_options(CONF)
     # arobot_callback_url like http://172.23.4.111:9876/v1
-    ipmi_get_url = CONF.arobot_callback_url + '/ipmi_conf'
+    ipmi_get_url = CONF.arobot_callback_url + '/ipmi_conf/' + sn
     resp = requests.get(ipmi_get_url, verify=verify, cert=cert)
     if resp.status_code >= 400:
         LOG.error('arobot ipmi error %d: %s',
@@ -79,7 +79,7 @@ def call_arobot():
     return ret
 
 
-def config_ipmi_info():
+def config_ipmi_info(sn):
 
     LOG.info('Config ipmi info...')
 
@@ -90,7 +90,7 @@ def config_ipmi_info():
     interval = 5
     index = 1
     while True:
-        ipmi_conf = call_arobot()
+        ipmi_conf = call_arobot(sn)
         if ipmi_conf:
             LOG.info('Got ipmi conf OK! address %s, netmask %s, gateway %s',
                      ipmi_conf.get('ipmi_address'),
@@ -167,7 +167,9 @@ def inspect():
         return
 
     # Call arobot API to get ipmi configurations
-    config_ipmi_info()
+    # Get sn
+    sn = data.get('inventory').get('system_vendor').get('serial_number')
+    config_ipmi_info(sn)
 
     # Optionally update IPMI credentials
     setup_ipmi_credentials(resp)
