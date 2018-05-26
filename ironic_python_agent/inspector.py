@@ -62,14 +62,10 @@ def config_raid(data):
 def call_arobot():
     LOG.info('Getting ipmi conf from %s', CONF.arobot_callback_url)
 
-    encoder = encoding.RESTJSONEncoder()
-
     verify, cert = utils.get_ssl_client_options(CONF)
     # arobot_callback_url like http://172.23.4.111:9876/v1
     ipmi_get_url = CONF.arobot_callback_url + '/ipmi_conf'
     resp = requests.get(ipmi_get_url, verify=verify, cert=cert)
-    # resp = requests.post(CONF.inspection_callback_url, data=data,
-    #                      verify=verify, cert=cert)
     if resp.status_code >= 400:
         LOG.error('arobot ipmi error %d: %s',
                   resp.status_code, resp.content.decode('utf-8'))
@@ -177,7 +173,7 @@ def inspect():
     setup_ipmi_credentials(resp)
 
     # Configure RAID
-    config_raid(data)
+    # config_raid(data)
 
     LOG.info('inspection finished successfully')
     return resp.get('uuid')
