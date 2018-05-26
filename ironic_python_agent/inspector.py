@@ -168,7 +168,7 @@ def inspect():
 
     # Call arobot API to get ipmi configurations
     # Get sn
-    sn = data.get('inventory').get('system_vendor').get('serial_number')
+    sn = data.get('inventory').get('system_vendor').serial_number
     config_ipmi_info(sn)
 
     # Optionally update IPMI credentials
