@@ -190,7 +190,7 @@ class PmcWorker(WorkerBase):
 
         if len(pds) == 2:
             configuration['task1'] = {
-                '''both of PDs will have same size'''
+                '''both PDs will have same size'''
                 "size": pds[0]['Total Size'],
                 "level": "1",
                 "num": 2,
