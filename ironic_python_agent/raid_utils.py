@@ -3,7 +3,8 @@
 from oslo_config import cfg
 from oslo_log import log as logging
 
-from ironic_python_agent.hardware_managers import mega
+from ironic_python_agent.hardware_managers import mega, pmc
+from ironic_python_agent import hardware
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -68,5 +69,15 @@ def get_type_by_properties(properties):
 
 def config_raid(server_type):
     # Only support MegaRAID
-    raid_manager = mega.MegaHardwareManager()
-    raid_manager.config_raid_by_server_type(server_type)
+
+    available_drivers = [mega.MegaHardwareManager, pmc.PmcHardwareManager]
+
+    for driver in available_drivers:
+        raid_manager = driver()
+        if raid_manager.evaluate_hardware_support() > hardware.HardwareSupport.NONE:
+            # let's define configure_node as default method for now
+            raid_manager.configure_node()
+            break
+
+
+
