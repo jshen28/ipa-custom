@@ -76,8 +76,7 @@ def config_raid(server_type):
         raid_manager = driver()
         if raid_manager.evaluate_hardware_support() > hardware.HardwareSupport.NONE:
             # let's define configure_node as default method for now
-            raid_manager.configure_node()
-            break
+            return raid_manager.configure_node()
 
 
 

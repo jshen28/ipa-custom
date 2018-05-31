@@ -279,7 +279,6 @@ class PmcWorker(WorkerBase):
         for key in sorted(self.config.keys()):
             config = self.config[key]
             size = string_to_num(config.get('size'))
-            #disk_type = config.get('type', None)
             disk_type = None
             level = config.get('level')
             num = config.get('num')
@@ -391,7 +390,21 @@ class PmcHardwareManager(hardware.GenericHardwareManager):
             return hardware.HardwareSupport.NONE
 
     def configure_node(self):
+
+        # configure raid
         pmc = PmcWorker()
         pmc.clear_previous_configs()
         pmc.generate_pd_profile()
         pmc.config_node()
+
+        # dump raid configuration
+        # {
+        #    "RAID 1" : [],
+        #    "RAID 5" : [],
+        #    "RAW"    : []
+        # }
+        #
+        pmc = PmcWorker()
+        pmc.generate_pd_profile()
+        pmc.get_ld_profile()
+        return pmc.get_raid_config()
