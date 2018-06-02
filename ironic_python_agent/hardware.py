@@ -366,11 +366,11 @@ class BlockDevice(encoding.SerializableComparable):
 class NetworkInterface(encoding.SerializableComparable):
     serializable_fields = ('name', 'mac_address', 'ipv4_address',
                            'has_carrier', 'lldp', 'vendor', 'product',
-                           'client_id', 'biosdevname')
+                           'client_id', 'biosdevname', 'lldpctl')
 
     def __init__(self, name, mac_addr, ipv4_address=None, has_carrier=True,
                  lldp=None, vendor=None, product=None, client_id=None,
-                 biosdevname=None):
+                 biosdevname=None, lldpctl=None):
         self.name = name
         self.mac_address = mac_addr
         self.ipv4_address = ipv4_address
@@ -383,6 +383,7 @@ class NetworkInterface(encoding.SerializableComparable):
         # client identifier Option to allow DHCP to work over InfiniBand.
         # see https://tools.ietf.org/html/rfc4390
         self.client_id = client_id
+        self.lldpctl = lldpctl
 
 
 class CPU(encoding.SerializableComparable):
@@ -439,6 +440,45 @@ class VirtualDrive(encoding.SerializableComparable):
         self.drive_num = drive_num
         self.drivers = drivers
         self.raidlevel = raidlevel
+
+class Processor(encoding.SerializableComparable):
+    serializable_fields = ('socket_designation', 'p_type', 'family',
+                           'vendor', 'model_name', 'max_speed', 'cur_speed',
+                           'architecture', 'core_per_socket', 'thread_per_core',
+                           'flags')
+
+    def __init__(self, **kwargs):
+        self.socket_designation = kwargs.get('socket_designation', None)
+        self.p_type = kwargs.get('p_type', None)
+        self.family = kwargs.get('family', None)
+        self.vendor = kwargs.get('vendor', None)
+        self.model_name = kwargs.get('model_name', None)
+        self.max_speed = kwargs.get('max_speed', None)
+        self.cur_speed = kwargs.get('cur_speed', None)
+        self.architecture = kwargs.get('architecture', None)
+        self.core_per_socket = kwargs.get('core_per_socket', None)
+        self.thread_per_core = kwargs.get('thread_per_core', None)
+        self.flags = kwargs.get('flags', None)
+
+class MemoryCard(encoding.SerializableComparable):
+    serializable_fields = ('locator', 'mc_size', 'mc_type', 'mc_speed',
+                           'vendor', 'serial_number')
+
+    def __init__(self, **kwargs):
+        self.locator = kwargs.get('locator', None)
+        self.mc_size = kwargs.get('mc_size', None)
+        self.mc_type = kwargs.get('mc_type', None)
+        self.mc_speed = kwargs.get('mc_speed', None)
+        self.vendor = kwargs.get('vendor', None)
+        self.serial_number = kwargs.get('serial_number', None)
+
+class LLDPExtraInfo(encoding.SerializableComparable):
+    serializable_fields = ('sysname', 'chassisid', 'mngip')
+
+    def __init__(self, **kwargs):
+        self.sysname = kwargs.get('sysname', None)
+        self.chassisid = kwargs.get('chassisid', None)
+        self.mngip = kwargs.get('mngip', None)
 
 @six.add_metaclass(abc.ABCMeta)
 class HardwareManager(object):
@@ -534,6 +574,9 @@ class HardwareManager(object):
         hardware_info['boot'] = self.get_boot_info()
         # hardware_info['pdisks'] = self.get_physical_disk()
         # hardware_info['virtual_drives'] = self.get_virtual_drive()
+        hardware_info['processors'] = self.get_processors()
+        hardware_info['memory_cards'] = self.get_memory_cards()
+        hardware_info['lldp_extra_info'] = self.get_lldp_extra_info()
         return hardware_info
 
     def get_clean_steps(self, node, ports):
@@ -694,13 +737,23 @@ class GenericHardwareManager(HardwareManager):
         with open(addr_path) as addr_file:
             mac_addr = addr_file.read().strip()
 
+        lldpctl = None
+        try:
+            cmd = 'lldpctl -f json ' + interface_name
+            out, _e = utils.execute(cmd, shell=True)
+        except (processutils.ProcessExecutionError, OSError) as e:
+            LOG.warning("Cannot get lldpctl information: %s", e)
+        else:
+            lldpctl = out
+
         return NetworkInterface(
             interface_name, mac_addr,
             ipv4_address=self.get_ipv4_addr(interface_name),
             has_carrier=netutils.interface_has_carrier(interface_name),
             vendor=_get_device_info(interface_name, 'net', 'vendor'),
             product=_get_device_info(interface_name, 'net', 'device'),
-            biosdevname=self.get_bios_given_nic_name(interface_name))
+            biosdevname=self.get_bios_given_nic_name(interface_name),
+            lldpctl=lldpctl)
 
     def get_ipv4_addr(self, interface_id):
         return netutils.get_ipv4_addr(interface_id)
@@ -899,14 +952,189 @@ class GenericHardwareManager(HardwareManager):
                         pxe_interface=pxe_interface)
 
     def get_physical_disk(self):
-        LOG.info('Begining to get pyhysical disk info')
+        LOG.info('Beginning to get pyhysical disk info')
 
         return list_all_physical_devices()
 
     def get_virtual_drive(self):
-        LOG.info('Begining to get virtual drive info')
+        LOG.info('Beginning to get virtual drive info')
 
         return list_all_virtual_drives()
+
+    def get_processors(self):
+        LOG.info('Beginning to get processors info.')
+
+        # Use dmidecode to get info
+        processors = []
+        sockets = []
+        p_types = []
+        families = []
+        vendors = []
+        models = []
+        max_speeds = []
+        cur_speeds = []
+        core_counts = []
+        thread_counts = []
+        flags = []
+        try:
+            out, _e = utils.execute('dmidecode --type processor',
+                                    shell=True)
+        except (processutils.ProcessExecutionError, OSError) as e:
+            LOG.warning("Cannot get processor information: %s", e)
+        else:
+            for line in out.split('\n'):
+                line_arr = line.split(':', 1)
+
+                if line_arr[0].strip() == 'Flags':
+                    flags.append(self.get_cpus().flags)
+                elif len(line_arr) != 2:
+                    continue
+
+                if line_arr[0].strip() == 'Socket Designation':
+                    sockets.append(line_arr[1].strip().replace(' ', '_'))
+                elif line_arr[0].strip() == 'Type':
+                    p_types.append(line_arr[1].strip())
+                elif line_arr[0].strip() == 'Family':
+                    families.append(line_arr[1].strip())
+                elif line_arr[0].strip() == 'Manufacturer':
+                    vendors.append(line_arr[1].strip())
+                elif line_arr[0].strip() == 'Version':
+                    models.append(line_arr[1].strip())
+                elif line_arr[0].strip() == 'Max Speed':
+                    max_speeds.append(line_arr[1].strip())
+                elif line_arr[0].strip() == 'Current Speed':
+                    cur_speeds.append(line_arr[1].strip())
+                elif line_arr[0].strip() == 'Core Count':
+                    core_counts.append(line_arr[1].strip())
+                elif line_arr[0].strip() == 'Thread Count':
+                    thread_counts.append(line_arr[1].strip())
+
+            len_list = [len(sockets), len(p_types), len(families), len(vendors),
+                        len(models), len(max_speeds), len(cur_speeds)]
+            if len(set(len_list)) != 1:
+                LOG.error("Can not get matched values. len: %s", len_list)
+                return None
+
+            # Architecture
+            arch = self.get_cpus().architecture
+            for index in range(len(sockets)):
+                if models[index] == 'Unknown Processor':
+                    continue
+                if len(core_counts) == len(thread_counts) \
+                        == len(flags) == len(sockets):
+                    core = int(core_counts[index])
+                    thread = int(thread_counts[index])/int(core_counts[index])
+                    flag = flags[index]
+                else:
+                    core = 0
+                    thread = 0
+                    flag = None
+                processors.append(Processor(socket_designation=sockets[index],
+                                            p_type=p_types[index],
+                                            family=families[index],
+                                            vendor=vendors[index],
+                                            model_name=models[index],
+                                            max_speed=max_speeds[index],
+                                            cur_speed=cur_speeds[index],
+                                            core_per_socket=core,
+                                            thread_per_core=thread,
+                                            flags=flag,
+                                            architecture=arch))
+
+        return processors
+
+    def get_memory_cards(self):
+        LOG.info('Beginning to get memory cards info.')
+
+        # Use dmidecode to get info
+        memory_cards = []
+        locators = []
+        mc_sizes = []
+        mc_types = []
+        mc_speeds = []
+        vendors = []
+        sns = []
+        try:
+            out, _e = utils.execute('dmidecode --type memory',
+                                    shell=True)
+        except (processutils.ProcessExecutionError, OSError) as e:
+            LOG.warning("Cannot get memory cards information: %s", e)
+        else:
+            for line in out.split('\n'):
+                line_arr = line.split(':', 1)
+
+                if len(line_arr) != 2:
+                    continue
+
+                if line_arr[0].strip() == 'Locator':
+                    locators.append(line_arr[1].strip())
+                elif line_arr[0].strip() == 'Size':
+                    mc_sizes.append(line_arr[1].strip())
+                elif line_arr[0].strip() == 'Type':
+                    mc_types.append(line_arr[1].strip())
+                elif line_arr[0].strip() == 'Speed':
+                    mc_speeds.append(line_arr[1].strip())
+                elif line_arr[0].strip() == 'Manufacturer':
+                    vendors.append(line_arr[1].strip())
+                elif line_arr[0].strip() == 'Serial Number':
+                    sns.append(line_arr[1].strip())
+
+            len_list = [len(locators), len(mc_sizes), len(mc_speeds),
+                        len(vendors), len(sns)]
+            if len(set(len_list)) != 1:
+                LOG.error("Can not get matched values. len: %s", len_list)
+                return None
+
+            for index in range(len(locators)):
+                if mc_sizes[index] == 'No Module Installed':
+                    continue
+                else:
+                    size_MB = int(mc_sizes[index].split(' ')[0])
+                memory_cards.append(MemoryCard(locator=locators[index],
+                                               mc_size=size_MB * 1024 * 1024,
+                                               mc_type=mc_types[index],
+                                               mc_speed=mc_speeds[index],
+                                               vendor=vendors[index],
+                                               serial_number=sns[index]))
+
+        return memory_cards
+
+    def get_lldp_extra_info(self):
+        LOG.info('Beginning to get lldp extra info.')
+
+        # Use lldpcli to get info
+        sysname = None
+        chassisid = None
+        # mngip has v4 and v6
+        mngip = []
+        try:
+            out, _e = utils.execute('lldpcli show chassis',
+                                    shell=True)
+        except (processutils.ProcessExecutionError, OSError) as e:
+            LOG.warning("Cannot get memory cards information: %s", e)
+        else:
+            for line in out.split('\n'):
+                line_arr = line.split(':', 1)
+
+                if len(line_arr) != 2:
+                    continue
+
+                if line_arr[0].strip() == 'SysName':
+                    sysname = line_arr[1].strip()
+                elif line_arr[0].strip() == 'ChassisID':
+                    chassisid = line_arr[1].strip()
+                elif line_arr[0].strip() == 'MgmtIP':
+                    mngip.append(line_arr[1].strip())
+
+        mip = None
+        for index in range(len(mngip)):
+            if len(mngip[index].split('.')) == 4:
+                mip = mngip[index]
+                break
+
+        return LLDPExtraInfo(sysname=sysname,
+                             chassisid=chassisid,
+                             mngip=mip)
 
     def erase_block_device(self, node, block_device):
 
