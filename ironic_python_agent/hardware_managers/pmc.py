@@ -287,7 +287,7 @@ class PmcWorker(WorkerBase):
             # get the first *num* feasible disks
             # it works fine assuming different disk model will have different disk sizes
             candidates = sorted([(i, val) for i, val in enumerate(self.controllers[0])
-                                 if not disk_type or val.get('Type', '').split(' ')[0] == disk_type],
+                                 if not disk_type or val.get('Type') == disk_type],
                                 key=lambda x: fabs(string_to_num(x[1]['Total Size']) - size))
             candidates = candidates[0:num]
 

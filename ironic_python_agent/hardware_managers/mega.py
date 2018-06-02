@@ -18,9 +18,15 @@ from oslo_log import log
 
 from ironic_python_agent import utils
 from ironic_python_agent import hardware
+from ironic_python_agent.hardware_managers.pmc import string_to_num
+from math import fabs
 
 LOG = log.getLogger()
 CONF = cfg.CONF
+
+JBOD_ON = '1'
+JBOD_OFF = '0'
+
 
 def _detect_raid_card():
     cmd = "/opt/MegaRAID/MegaCli/MegaCli64 -adpCount | grep Controller"
@@ -144,5 +150,188 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
         cmd = '/opt/MegaRAID/MegaCli/MegaCli64 -CfgLdAdd ' + '-r' \
               + str(raid_level) + "[" + pd_list + "] " + "-a" + physical_disks[0].adapter_id
         utils.execute(cmd)
+
+    @staticmethod
+    def group_physical_drives_by_type(physical_drives):
+
+        group = {}
+        for drive in physical_drives:
+            if group.get(drive['Type']) is None:
+                group[drive['Type']] = []
+            group.get(drive['Type']).append(drive.copy())
+        return group
+
+    @staticmethod
+    def generate_logical_drive_configuration(physical_drives):
+
+        group = MegaHardwareManager.group_physical_drives_by_type(physical_drives)
+        ssd, sas, sata = group['SSD'], group['SAS'], group['SATA']
+        configuration = {}
+        if len(physical_drives) == 2:
+            configuration['task1'] = {
+                # both PDs will have same size
+                "size": physical_drives[0]['Total Size'],
+                "level": "1",
+                "num": 2,
+                "type": "SSD"
+            }
+        elif len(ssd) == 0:
+            '''there is no SSD'''
+            if len(sas) == 2 and len(sata) == 8:
+                configuration['task1'] = {
+                    "size": sas[0]['Total Size'],
+                    "level": "1",
+                    "num": 2,
+                    "type": "SAS"
+                }
+                configuration['task2'] = {
+                    "size": sata[0]['Total Size'],
+                    "level": "5",
+                    "num": 8,
+                    "type": "SATA"
+                }
+        elif len(ssd) == 2 and len(sas) == 2 and len(sata) == 0:
+            configuration['task1'] = {
+                "size": ssd[0]['Total Size'],
+                "level": "1",
+                "num": 2,
+                "type": "SSD"
+            }
+            configuration['task2'] = {
+                "size": sas[0]['Total Size'],
+                "level": "1",
+                "num": 2,
+                "type": "SAS"
+            }
+        elif len(ssd) == 2 and len(sas) == 2 and len(sata) != 0:
+            configuration['task1'] = {
+                "size": sas[0]['Total Size'],
+                "level": "1",
+                "num": 2,
+                "type": "SAS"
+            }
+            configuration['task2'] = {
+                "size": ssd[0]['Total Size'],
+                "level": "1",
+                "num": 2,
+                "type": "SSD"
+            }
+
+            if string_to_num(ssd[0]['Total Size']) > 700 * 1024:
+                configuration['task3'] = {
+                    "size": sata[0]['Total Size'],
+                    "level": "5",
+                    "num": len(sata),
+                    "type": "SATA"
+                }
+        elif len(ssd) == 4:
+            configuration['task1'] = {
+                "size": ssd[0]['Total Size'],
+                "level": "1",
+                "num": 2,
+                "type": "SSD"
+            }
+            configuration['task2'] = {
+                "size": ssd[0]['Total Size'],
+                "level": "1",
+                "num": 2,
+                "type": "SSD"
+            }
+        return configuration
+
+    @staticmethod
+    def set_jbod_mode(self, mode):
+        """
+        By default, LSI does not support JBOD, so enabling JBOD mode is mandatory
+        Assume single RAID card
+        :return:
+        """
+        cmd = "/opt/MegaRAID/MegaCli/MegaCli64 -AdpGetProp EnableJBOD -a0 | grep -c \"Disabled\""
+        result, _ = utils.execute(cmd, shell=True)
+
+        # reconfigure mode only if mode conflict
+        if mode == JBOD_ON and int(result) == 0 \
+                or mode == JBOD_OFF and int(result) == 1:
+            return
+
+        # enabling JBOD may require a reboot
+        cmd = "/opt/MegaRAID/MegaCli/MegaCli64 -AdpSetProp EnableJBOD %s -a0" % mode
+        utils.execute(cmd, shell=True)
+
+    def config_node(self):
+        """
+        configure
+        :return:  raid_profile : a dict whose key is raid level and values are
+                                 corresponding physical drives
+        """
+
+        # delete existing configurations
+        self.delete_configuration()
+
+        # list all existing physcial disks
+        physical_disks = hardware.list_all_physical_devices()
+        LOG.debug("all existing physical devices: %s", physical_disks)
+
+        # generate configuration profile
+        configs = self.generate_logical_drive_configuration(physical_disks)
+
+        # if there are unconfigured disks available
+        # this implies that pass through mode is required
+        # then enable JBOD mode
+        if len(physical_disks) > sum([len(val) for key, val in configs.items()]):
+            LOG.debug('enable JBOD mode')
+            self.set_jbod_mode(JBOD_ON)
+
+        # add configuration in accordance to profile
+        for task_key in sorted(configs.keys()):
+
+            # fetch one configuration
+            task_config = configs[task_key]
+
+            size = task_config['size']          # physical drive raw size
+            level = task_config['level']        # raid level
+            num = task_config['num']            # number of disks
+            disk_type = task_config['type']     # disk type ssd, sas, sata
+
+            # select raid candidates
+            candidates = sorted([(i, val) for i, val in enumerate(physical_disks)
+                                 if not disk_type or val.get('Type') == disk_type],
+                                key=lambda x: fabs(string_to_num(x[1]['Total Size']) - size))
+
+            # select the first num feasible candidates
+            candidates = candidates[0:num]
+
+            # delete selected pds from candidate list
+            # To avoid reindexing, delete backwads
+            for i, _ in sorted(candidates, key=lambda x: -x[0]):
+                del physical_disks[i]
+
+            # prepare configuration strings
+            enclosure_device_list = ["%s:%s" % (val['Enclosure_Device_Id'], val['Slot_Id']) for i, val in candidates]
+            cmd = '/opt/MegaRAID/MegaCli/MegaCli64 -CfgLdAdd ' + '-r' \
+                  + str(level) + "[" + ','.join(enclosure_device_list) + "] " + "-a" + physical_disks[0].adapter_id
+            utils.execute(cmd)
+
+        # list all existing logical drives
+        physical_disks = hardware.list_all_physical_devices()
+        physical_disk_dict = {}
+        for pd in physical_disks:
+            physical_disk_dict[pd['Model']] = pd
+
+        logical_drives = hardware.list_all_virtual_drives()
+        raid_profile = {}
+        for logical_drive in logical_drives:
+            if raid_profile.get(logical_drive['Raid_Level']) is None:
+                raid_profile[logical_drive['Raid_Level']] = []
+            for drive in logical_drives:
+                del physical_disk_dict[drive['Model']]
+            raid_profile[logical_drive['Raid_Level']].append(logical_drive.drivers)
+
+        for key, val in physical_disk_dict.items():
+            if raid_profile.get('Raw') is None:
+                raid_profile['Raw'] = []
+            raid_profile['Raw'].append(val)
+        return raid_profile
+
 
 
