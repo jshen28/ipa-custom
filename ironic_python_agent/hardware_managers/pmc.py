@@ -390,10 +390,13 @@ class PmcHardwareManager(hardware.GenericHardwareManager):
 
     def evaluate_hardware_support(self):
         cmd = "lspci | grep -i 'adaptec'"
-        result, _ = run_command(cmd)
-        if result:
-            return hardware.HardwareSupport.SERVICE_PROVIDER
-        else:
+        try:
+            result, _ = run_command(cmd)
+            if result:
+                return hardware.HardwareSupport.SERVICE_PROVIDER
+            else:
+                return hardware.HardwareSupport.NONE
+        except Exception:
             return hardware.HardwareSupport.NONE
 
     def configure_node(self):
