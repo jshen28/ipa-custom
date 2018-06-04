@@ -61,7 +61,11 @@ def config_raid(data):
 
     # call back and save raid configurations
     raid_post_url = CONF.arobot_callback_url + '/raid_conf'
-    resp = requests.post(raid_post_url, json=raid_config, cert=cert, verify=verify)
+    json = {
+        'sn': data.get('inventory').get('system_vendor').serial_number,
+        'config': raid_config
+    }
+    resp = requests.post(raid_post_url, json=json, cert=cert, verify=verify)
     if resp.status_code >= 400:
         LOG.error("arobot raid error %d: %s", resp.status_code, resp.content.decode('utf-8'))
 
