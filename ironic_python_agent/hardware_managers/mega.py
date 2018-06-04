@@ -154,7 +154,11 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
     @staticmethod
     def group_physical_drives_by_type(physical_drives):
 
-        group = {}
+        group = {
+            "SSD": [],
+            "SAS": [],
+            "SATA": []
+        }
         for drive in physical_drives:
             if group.get(drive['Type']) is None:
                 group[drive['Type']] = []
@@ -189,6 +193,13 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
                     "level": "5",
                     "num": 8,
                     "type": "SATA"
+                }
+            elif len(sas) == 2:
+                configuration['task1'] = {
+                    "size": sas[0]['Total Size'],
+                    "level": "1",
+                    "num": 2,
+                    "type": "SAS"
                 }
         elif len(ssd) == 2 and len(sas) == 2 and len(sata) == 0:
             configuration['task1'] = {
@@ -258,7 +269,7 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
         cmd = "/opt/MegaRAID/MegaCli/MegaCli64 -AdpSetProp EnableJBOD %s -a0" % mode
         utils.execute(cmd, shell=True)
 
-    def config_node(self):
+    def configure_node(self):
         """
         configure
         :return:  raid_profile : a dict whose key is raid level and values are
@@ -309,7 +320,7 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
             # prepare configuration strings
             enclosure_device_list = ["%s:%s" % (val['Enclosure_Device_Id'], val['Slot_Id']) for i, val in candidates]
             cmd = '/opt/MegaRAID/MegaCli/MegaCli64 -CfgLdAdd ' + '-r' \
-                  + str(level) + "[" + ','.join(enclosure_device_list) + "] " + "-a" + physical_disks[0].adapter_id
+                  + str(level) + "[" + ','.join(enclosure_device_list) + "] " + "-a" + '0'
             utils.execute(cmd)
 
         # list all existing logical drives
