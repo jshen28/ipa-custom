@@ -30,14 +30,17 @@ JBOD_OFF = '0'
 
 def _detect_raid_card():
     cmd = "/opt/MegaRAID/MegaCli/MegaCli64 -adpCount | grep Controller"
-    report, _e = utils.execute(cmd, shell=True)
-    clounms = report.split(':')
-    LOG.debug('Get Adapter Info:%s', clounms[1])
-    adaptercount = int(clounms[1].split('.')[0])
-    if adaptercount == 0:
+    try:
+        report, _e = utils.execute(cmd, shell=True)
+        clounms = report.split(':')
+        LOG.debug('Get Adapter Info:%s', clounms[1])
+        adaptercount = int(clounms[1].split('.')[0])
+        if adaptercount == 0:
+            return False
+        else:
+            return True
+    except Exception:
         return False
-    else:
-        return True
 
 class MegaHardwareManager(hardware.GenericHardwareManager):
     HARDWARE_MANAGER_NAME = 'MegaHardwareManager'
