@@ -442,13 +442,12 @@ class BootInfo(encoding.SerializableComparable):
         self.pxe_interface = pxe_interface
 
 class PhysicalDisk(encoding.SerializableComparable):
-    serializable_fields = ('adapter_id', 'enclosure_id', "slot_id", "disk_size", "type")
-    def __init__(self, adapter_id, enclosure_id, slot_id, disk_size, type):
+    serializable_fields = ('adapter_id', 'enclosure_id', "slot_id", "disk_size")
+    def __init__(self, adapter_id, enclosure_id, slot_id, disk_size):
         self.adapter_id = adapter_id
         self.enclosure_id = enclosure_id
         self.slot_id = slot_id
         self.disk_size = disk_size
-        self.type = type
 
 class VirtualDrive(encoding.SerializableComparable):
     serializable_fields = ('target_id', 'size', "drive_num", "drivers","raidlevel")
