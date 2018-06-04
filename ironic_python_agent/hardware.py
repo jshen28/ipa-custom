@@ -220,7 +220,8 @@ def list_all_physical_devices(block_type='disk'):
                     break
                 elif lines[j].find("Adapter") == -1:
                     device['Adapter_id'] = adapter
-
+                    # increment i by 1 avoid endless looping
+                    i = j + 1
                     # Enclosure & Slot are required when adding configurations
                     if j % 5 == 1:
                         device['Enclosure_Device_Id'] = lines[j].split(':')[1].strip()
@@ -232,7 +233,7 @@ def list_all_physical_devices(block_type='disk'):
                     if j % 5 == 4:
                         disk_size = lines[j].split(':')[1]
                         disk_size = disk_size.split('[')
-                        disk_size = disk_size[0]
+                        disk_size = disk_size[0].strip()
                         disk_size.strip()
 
                         # LSI Raw type is same as PMC total size
@@ -240,10 +241,7 @@ def list_all_physical_devices(block_type='disk'):
                     if j % 5 == 0:
                         # Inquiry Data: Manufacturer & Series Number
                         device['Model'] = lines[j].split(':')[1].strip()
-                        devices.append(PhysicalDisk(adapter_id=device['Adapter_id'],
-                                                    enclosure_id=device['Enclosure_Device_Id'],
-                                                    slot_id=device['Slot_Id'],
-                                                    disk_size=device['Size']))
+                        devices.append(device.copy())
 
     return devices
 
@@ -293,10 +291,12 @@ def list_all_virtual_drives():
             print index + 4 * l + 5 * predrivenum + 4
 
             # save logical drive information
-            target_id = lines[index + 4 * l + 5 * predrivenum].split(":")[1]
-            target_id = target_id.split("(")[0]
+            target_id = lines[index + 4 * l + 5 * predrivenum].split("(")[0].strip().split(":")[1].strip()
             drive["Target_id"] = target_id
-            drive["Raid_Level"] = lines[index + 4 * l + 5 * predrivenum + 1].split(":")[1].split(',')[0]
+
+            # assume complex RAID configuration does not exist
+            # only require 0, 1, 5 and pass through
+            drive["Raid_Level"] = "RAID " + lines[index + 4 * l + 5 * predrivenum + 1].split(":")[1].split(',')[0].strip().split('-')[1]
             drive["Size"] = lines[index + 4 * l + 5 * predrivenum + 2].split(":")[1]
             drive["Drive_Num"] = int(lines[index + 4 * l + 5 * predrivenum + 3].split(":")[1])
             LOG.info('Target_Id:%s',  drive["Target_id"])
@@ -309,7 +309,7 @@ def list_all_virtual_drives():
             # compute physical drive start & stop index
             # trailing +4 skips the first 4 lines logical drive related message
             start = index + 4 * l + 5 * predrivenum + 4
-            end = index + 4 * l + 5 * predrivenum + 4 + int(drive["Drive_Num"])*3
+            end = index + 4 * l + 5 * predrivenum + 4 + int(drive["Drive_Num"]) * 5
             print "start:"
             print start
             print "end:"
@@ -332,12 +332,9 @@ def list_all_virtual_drives():
                     drivecount += 1
                     pdisks.append({})
                     print pdisks
+            # remove the trailing empty dict from pdisk list
             pdisks.pop(drivecount)
-            virtualdrives.append(VirtualDrive(target_id=drive['Target_id'],
-                                        size=drive['Size'],
-                                        drive_num=drive["Drive_Num"],
-                                        drivers=drive["drives"],
-                                        raidlevel=drive["Raid_Level"]))
+            virtualdrives.append(drive.copy())
     LOG.info('The Virtual Drive Info:[%s]', virtualdrives)
 
     return virtualdrives
@@ -445,12 +442,13 @@ class BootInfo(encoding.SerializableComparable):
         self.pxe_interface = pxe_interface
 
 class PhysicalDisk(encoding.SerializableComparable):
-    serializable_fields = ('adapter_id', 'enclosure_id', "slot_id", "disk_size")
-    def __init__(self, adapter_id, enclosure_id, slot_id, disk_size):
+    serializable_fields = ('adapter_id', 'enclosure_id', "slot_id", "disk_size", "type")
+    def __init__(self, adapter_id, enclosure_id, slot_id, disk_size, type):
         self.adapter_id = adapter_id
         self.enclosure_id = enclosure_id
         self.slot_id = slot_id
         self.disk_size = disk_size
+        self.type = type
 
 class VirtualDrive(encoding.SerializableComparable):
     serializable_fields = ('target_id', 'size', "drive_num", "drivers","raidlevel")
