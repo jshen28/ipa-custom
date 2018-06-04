@@ -318,14 +318,14 @@ def list_all_virtual_drives():
             pdisks = [{}]
             drivecount = 0
             for k in range(start, end):
-                if lines[k].find("Enclosure Device ID") != -1:
-                    pdisks[drivecount]["Enclosure_Id"] = lines[k].split(":")[1].strip()
-                if lines[k].find("Slot Number") != -1:
-                    pdisks[drivecount]["Slot_Id"] = lines[k].split(":")[1].strip()
+                # if lines[k].find("Enclosure Device ID") != -1:
+                #     pdisks[drivecount]["Enclosure_Id"] = lines[k].split(":")[1].strip()
+                # if lines[k].find("Slot Number") != -1:
+                #     pdisks[drivecount]["Slot_Id"] = lines[k].split(":")[1].strip()
                 if lines[k].find('Raw Size') != -1:
                     pdisks[drivecount]["Total Size"] = lines[k].split(":")[1].strip().split('[')[0].strip()
                 if lines[k].find("PD Type") != -1:
-                    pdisks[drivecount]["PD_Type"] = lines[k].split(":")[1].strip()
+                    pdisks[drivecount]["Type"] = lines[k].split(":")[1].strip()
                     drive["drives"] = pdisks
                 if lines[k].find('Inquiry Data') != -1:
                     pdisks[drivecount]["Model"] = lines[k].split(":")[1].strip()

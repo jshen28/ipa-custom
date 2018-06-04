@@ -339,9 +339,13 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
             raid_profile[logical_drive['Raid_Level']].append(logical_drive.drivers)
 
         for key, val in physical_disk_dict.items():
-            if raid_profile.get('Raw') is None:
-                raid_profile['Raw'] = []
-            raid_profile['Raw'].append(val)
+            if raid_profile.get('RAW') is None:
+                raid_profile['RAW'] = []
+            raid_profile['RAW'].append({
+                'Total Size': val['Total Size'],
+                'Type': val['Type'],
+                'Model': val['Model']
+            })
         return raid_profile
 
 

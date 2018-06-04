@@ -325,15 +325,22 @@ class PmcWorker(WorkerBase):
             level = "RAID %s" % ld['RAID level']
             if raid_config.get(level) is None:
                 raid_config[level] = []
-            #raid_config[level].append(','.join(ld['pd']))
-            raid_config[level].append([ pd_detail[i] for i in ld['pd']])
+            raid_config[level].append([{
+                'Type': pd_detail[i]['Type'],
+                'Model': pd_detail[i]['Model'],
+                'Total Size': pd_detail[i]['Total Size']
+            } for i in ld['pd']])
 
         for _, pd in pd_detail.items():
-            if 'Raw' in pd.get('State'):
-                if raid_config.get('Raw') is None:
-                    raid_config['Raw'] = []
+            if 'RAW' in pd.get('State'):
+                if raid_config.get('RAW') is None:
+                    raid_config['RAW'] = []
                 #raid_config['Raw'].append(pd['Serial number'])
-                raid_config['Raw'].append(pd)
+                raid_config['RAW'].append({
+                    'Model': pd['Model'],
+                    'Total Size': pd['Total Size'],
+                    'Type': pd['Type']
+                })
         return raid_config
 
     def get_ld_profile(self, run_command=run_command):
