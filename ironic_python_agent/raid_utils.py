@@ -67,7 +67,7 @@ def get_type_by_properties(properties):
     return 'Unknown'
 
 
-def config_raid(server_type):
+def config_raid():
     # Only support MegaRAID
 
     available_drivers = [mega.MegaHardwareManager, pmc.PmcHardwareManager]
