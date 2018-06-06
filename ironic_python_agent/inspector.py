@@ -193,7 +193,7 @@ def inspect():
     config_ipmi_info(sn)
 
     # Optionally update IPMI credentials
-    setup_ipmi_credentials(resp)
+    # setup_ipmi_credentials(resp)
 
 
     LOG.info('inspection finished successfully')
