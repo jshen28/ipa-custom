@@ -175,15 +175,6 @@ def inspect():
             # No reraise here, try to keep going
             failures.add('collector %s failed: %s', name, exc)
 
-    resp = call_inspector(data, failures)
-
-    # Now raise everything we were delaying
-    failures.raise_if_needed()
-
-    if resp is None:
-        LOG.info('stopping inspection, as inspector returned an error')
-        return
-
     # Configure RAID
     config_raid(data)
 
@@ -195,6 +186,14 @@ def inspect():
     # Optionally update IPMI credentials
     # setup_ipmi_credentials(resp)
 
+    resp = call_inspector(data, failures)
+
+    # Now raise everything we were delaying
+    failures.raise_if_needed()
+
+    if resp is None:
+        LOG.info('stopping inspection, as inspector returned an error')
+        return
 
     LOG.info('inspection finished successfully')
     return resp.get('uuid')
