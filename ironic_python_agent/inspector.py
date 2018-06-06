@@ -65,6 +65,13 @@ def config_raid(data):
         'sn': data.get('inventory').get('system_vendor').serial_number,
         'config': raid_config
     }
+
+    # update contents of inventory.disks
+    # because hardware.GenericHardwareManager will always
+    # be loaded before raid properly configured
+    data['inventory']['disks'] = hardware.GenericHardwareManager().list_block_devices()
+
+    # call back to ironic-inspector
     resp = requests.post(raid_post_url, json=json, cert=cert, verify=verify)
     if resp.status_code >= 400:
         LOG.error("arobot raid error %d: %s", resp.status_code, resp.content.decode('utf-8'))
@@ -168,15 +175,6 @@ def inspect():
             # No reraise here, try to keep going
             failures.add('collector %s failed: %s', name, exc)
 
-    resp = call_inspector(data, failures)
-
-    # Now raise everything we were delaying
-    failures.raise_if_needed()
-
-    if resp is None:
-        LOG.info('stopping inspection, as inspector returned an error')
-        return
-
     # Configure RAID
     config_raid(data)
 
@@ -186,8 +184,16 @@ def inspect():
     config_ipmi_info(sn)
 
     # Optionally update IPMI credentials
-    setup_ipmi_credentials(resp)
+    # setup_ipmi_credentials(resp)
 
+    resp = call_inspector(data, failures)
+
+    # Now raise everything we were delaying
+    failures.raise_if_needed()
+
+    if resp is None:
+        LOG.info('stopping inspection, as inspector returned an error')
+        return
 
     LOG.info('inspection finished successfully')
     return resp.get('uuid')
