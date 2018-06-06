@@ -189,7 +189,7 @@ def list_all_physical_devices(block_type='disk'):
     :return: A list of Physical Drive
     """
 
-    report, _e = utils.execute("/opt/MegaRAID/MegaCli/MegaCli64 -PDList -aALL | grep -iE \"adapter|Enclosure Device ID|slot number|Raw size\"",
+    report, _e = utils.execute("/opt/MegaRAID/MegaCli/MegaCli64 -PDList -aALL | grep -iE \"adapter|Enclosure Device ID|slot number|Raw size|PD Type|Inquiry Data\"",
                             shell=True)
     lines = report.split('\n')
     context = pyudev.Context()
@@ -208,6 +208,8 @@ def list_all_physical_devices(block_type='disk'):
             LOG.info('Get a Adapter with id: %s. Continuing', adapter)
         elif lines[i].find('Adapter') == -1:
             device = {}
+            # 5 metrics are collected
+            # Enclosure ID, slot number, Raw size
             for j in range(i, len(lines)):
                 LOG.info('Parse the Megacli Result for Physical Disk: %s', lines[j])
                 if lines[j].find("Adapter") != -1:
@@ -218,22 +220,31 @@ def list_all_physical_devices(block_type='disk'):
                     break
                 elif lines[j].find("Adapter") == -1:
                     device['Adapter_id'] = adapter
-                    if j%3 == 1:
+                    # increment i by 1 avoid endless looping
+                    i = j + 1
+                    # Enclosure & Slot are required when adding configurations
+                    if j % 5 == 1:
                         device['Enclosure_Device_Id'] = lines[j].split(':')[1].strip()
-                    if j%3 == 2:
+                    if j % 5 == 2:
                         device['Slot_Id'] = lines[j].split(':')[1].strip()
-                    if j%3 == 0:
+                    if j % 5 == 3:
+                        # Physical Disk Type
+                        device['Type'] = lines[j].split(':')[1].strip()
+                    if j % 5 == 4:
                         disk_size = lines[j].split(':')[1]
                         disk_size = disk_size.split('[')
-                        disk_size = disk_size[0]
+                        disk_size = disk_size[0].strip()
                         disk_size.strip()
-                        device['Size'] = disk_size
-                        devices.append(PhysicalDisk(adapter_id=device['Adapter_id'],
-                                                    enclosure_id=device['Enclosure_Device_Id'],
-                                                    slot_id=device['Slot_Id'],
-                                                    disk_size=device['Size']))
+
+                        # LSI Raw type is same as PMC total size
+                        device['Total Size'] = disk_size
+                    if j % 5 == 0:
+                        # Inquiry Data: Manufacturer & Series Number
+                        device['Model'] = lines[j].split(':')[1].strip()
+                        devices.append(device.copy())
 
     return devices
+
 
 def list_all_virtual_drives():
     """List all virtual drive Info
@@ -249,8 +260,7 @@ def list_all_virtual_drives():
     """
     report, _e = utils.execute("/opt/MegaRAID/MegaCli/MegaCli64 -LDPDInfo -aall|grep -iE "
                                "\'adapter|number of virtual disks|RAID Level|virtual drive|Number of drives"
-                               "|^size|^PD Type|Enclosure device id|slot number\'",shell=True)
-    #report, _e = utils.execute("cat /root/111.txt", shell=True)
+                               "|^size|^PD Type|Enclosure device id|slot number|Raw Size|Inquiry Data\'",shell=True)
     lines = report.split('\n')
     context = pyudev.Context()
 
@@ -278,13 +288,17 @@ def list_all_virtual_drives():
         LOG.info('Virtual_Num:%s Continuing', numofdisklist[j]["Virtual_Drive_NUM"])
         for l in range(0, numofdisklist[j]["Virtual_Drive_NUM"]):
             print "virtualstart:"
-            print index + 4*l + 3*predrivenum+ 4
-            target_id = lines[index + 4*l + 3*predrivenum].split(":")[1]
-            target_id = target_id.split("(")[0]
+            print index + 4 * l + 5 * predrivenum + 4
+
+            # save logical drive information
+            target_id = lines[index + 4 * l + 5 * predrivenum].split("(")[0].strip().split(":")[1].strip()
             drive["Target_id"] = target_id
-            drive["Raid_Level"] = lines[index + 4*l + 3 * predrivenum + 1].split(":")[1].split(',')[0]
-            drive["Size"] = lines[index + 4*l + 3*predrivenum+ 2].split(":")[1]
-            drive["Drive_Num"] = int(lines[index + 4*l + 3*predrivenum+ 3].split(":")[1])
+
+            # assume complex RAID configuration does not exist
+            # only require 0, 1, 5 and pass through
+            drive["Raid_Level"] = "RAID " + lines[index + 4 * l + 5 * predrivenum + 1].split(":")[1].split(',')[0].strip().split('-')[1]
+            drive["Size"] = lines[index + 4 * l + 5 * predrivenum + 2].split(":")[1]
+            drive["Drive_Num"] = int(lines[index + 4 * l + 5 * predrivenum + 3].split(":")[1])
             LOG.info('Target_Id:%s',  drive["Target_id"])
             print drive["Target_id"]
             LOG.info('Size:%s', drive["Size"])
@@ -292,8 +306,10 @@ def list_all_virtual_drives():
             LOG.info('Drive_Num:%s', drive["Drive_Num"])
             print drive["Drive_Num"]
 
-            start = index + 4*l + 3*predrivenum + 4
-            end = index + 4*l + 3*predrivenum + 4 + int(drive["Drive_Num"])*3
+            # compute physical drive start & stop index
+            # trailing +4 skips the first 4 lines logical drive related message
+            start = index + 4 * l + 5 * predrivenum + 4
+            end = index + 4 * l + 5 * predrivenum + 4 + int(drive["Drive_Num"]) * 5
             print "start:"
             print start
             print "end:"
@@ -302,25 +318,27 @@ def list_all_virtual_drives():
             pdisks = [{}]
             drivecount = 0
             for k in range(start, end):
-                if lines[k].find("Enclosure Device ID") != -1:
-                    pdisks[drivecount]["Enclosure_Id"] = lines[k].split(":")[1].strip()
-                if lines[k].find("Slot Number") != -1:
-                    pdisks[drivecount]["Slot_Id"] = lines[k].split(":")[1].strip()
+                # if lines[k].find("Enclosure Device ID") != -1:
+                #     pdisks[drivecount]["Enclosure_Id"] = lines[k].split(":")[1].strip()
+                # if lines[k].find("Slot Number") != -1:
+                #     pdisks[drivecount]["Slot_Id"] = lines[k].split(":")[1].strip()
+                if lines[k].find('Raw Size') != -1:
+                    pdisks[drivecount]["Total Size"] = lines[k].split(":")[1].strip().split('[')[0].strip()
                 if lines[k].find("PD Type") != -1:
-                    pdisks[drivecount]["PD_Type"] = lines[k].split(":")[1].strip()
+                    pdisks[drivecount]["Type"] = lines[k].split(":")[1].strip()
                     drive["drives"] = pdisks
+                if lines[k].find('Inquiry Data') != -1:
+                    pdisks[drivecount]["Model"] = lines[k].split(":")[1].strip()
                     drivecount += 1
                     pdisks.append({})
                     print pdisks
+            # remove the trailing empty dict from pdisk list
             pdisks.pop(drivecount)
-            virtualdrives.append(VirtualDrive(target_id=drive['Target_id'],
-                                        size=drive['Size'],
-                                        drive_num=drive["Drive_Num"],
-                                        drivers=drive["drives"],
-                                        raidlevel=drive["Raid_Level"]))
+            virtualdrives.append(drive.copy())
     LOG.info('The Virtual Drive Info:[%s]', virtualdrives)
 
     return virtualdrives
+
 
 class HardwareSupport(object):
     """Example priorities for hardware managers.
