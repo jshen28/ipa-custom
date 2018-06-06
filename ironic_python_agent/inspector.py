@@ -51,12 +51,12 @@ def extension_manager(names):
 
 
 def config_raid(data):
-    server_type = raid_utils.get_type_by_properties(data)
-    if server_type not in raid_utils.VALID_TYPE:
-        LOG.error('Unknown server type, and can not configure RAID default.')
-        return
+    # server_type = raid_utils.get_type_by_properties(data)
+    # if server_type not in raid_utils.VALID_TYPE:
+    #     LOG.error('Unknown server type, and can not configure RAID default.')
+    #     return
 
-    raid_config = raid_utils.config_raid(server_type)
+    raid_config = raid_utils.config_raid()
     verify, cert = utils.get_ssl_client_options(CONF)
 
     # call back and save raid configurations
