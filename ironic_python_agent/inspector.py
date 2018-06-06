@@ -65,6 +65,13 @@ def config_raid(data):
         'sn': data.get('inventory').get('system_vendor').serial_number,
         'config': raid_config
     }
+
+    # update contents of inventory.disks
+    # because hardware.GenericHardwareManager will always
+    # be loaded before raid properly configured
+    data['inventory']['disks'] = hardware.GenericHardwareManager().list_block_devices()
+
+    # call back to ironic-inspector
     resp = requests.post(raid_post_url, json=json, cert=cert, verify=verify)
     if resp.status_code >= 400:
         LOG.error("arobot raid error %d: %s", resp.status_code, resp.content.decode('utf-8'))
