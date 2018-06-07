@@ -327,7 +327,7 @@ class PmcWorker(WorkerBase):
                 raid_config[level] = []
             raid_config[level].append([{
                 'Type': pd_detail[i]['Type'],
-                'Model': pd_detail[i]['Model'],
+                'Model': '%s %s' % (pd_detail[i]['Vendor'], pd_detail[i]['Model']),
                 'Total Size': pd_detail[i]['Total Size']
             } for i in ld['pd']])
 
@@ -337,7 +337,7 @@ class PmcWorker(WorkerBase):
                     raid_config['RAW'] = []
                 #raid_config['Raw'].append(pd['Serial number'])
                 raid_config['RAW'].append({
-                    'Model': pd['Model'],
+                    'Model': '%s %s' % (pd['Vendor'], pd['Model']),
                     'Total Size': pd['Total Size'],
                     'Type': pd['Type']
                 })
