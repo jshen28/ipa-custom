@@ -332,7 +332,7 @@ class PmcWorker(WorkerBase):
             } for i in ld['pd']])
 
         for _, pd in pd_detail.items():
-            if 'RAW' in pd.get('State'):
+            if 'Raw' in pd.get('State'):
                 if raid_config.get('RAW') is None:
                     raid_config['RAW'] = []
                 #raid_config['Raw'].append(pd['Serial number'])
