@@ -178,11 +178,6 @@ def inspect():
     # Configure RAID
     config_raid(data)
 
-    # Call arobot API to get ipmi configurations
-    # Get sn
-    sn = data.get('inventory').get('system_vendor').serial_number
-    config_ipmi_info(sn)
-
     # Optionally update IPMI credentials
     # setup_ipmi_credentials(resp)
 
@@ -195,6 +190,10 @@ def inspect():
         LOG.info('stopping inspection, as inspector returned an error')
         return
 
+    # Call arobot API to get ipmi configurations
+    # Get sn
+    sn = data.get('inventory').get('system_vendor').serial_number
+    config_ipmi_info(sn)
     LOG.info('inspection finished successfully')
     return resp.get('uuid')
 
