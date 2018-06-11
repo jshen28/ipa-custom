@@ -89,7 +89,7 @@ def call_arobot(sn):
     resp = requests.get(ipmi_get_url, verify=verify, cert=cert)
     if resp.status_code >= 400:
         LOG.error('arobot ipmi error %d: %s',
-                  resp.status_code, resp.content.decode('utf-8'))
+                  resp.status_code  , resp.content.decode('utf-8'))
         return
 
     ret = resp.json()
@@ -99,6 +99,13 @@ def call_arobot(sn):
 
     return ret
 
+def tell_arobot_ipmi(sn):
+    LOG.info('Tell arobot ipmi config successfully %s', CONF.arobot_callback_url)
+
+    verify, cert = utils.get_ssl_client_options(CONF)
+    # arobot_callback_url like http://172.23.4.111:9876/v1
+    ipmi_get_url = CONF.arobot_callback_url + '/ipmi_conf/' + sn
+    resp = requests.put(ipmi_get_url, verify=verify, cert=cert)
 
 def config_ipmi_info(sn):
 
@@ -136,8 +143,8 @@ def config_ipmi_info(sn):
             LOG.exception('failed to update IPMI ip/netmask/gw')
             raise errors.InspectionError('failed to update IPMI ip/netmask/gw')
 
+    tell_arobot_ipmi()
     LOG.info('successfully set IPMI conf!')
-
 
 def inspect():
     """Optionally run inspection on the current node.
