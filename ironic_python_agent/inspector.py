@@ -143,7 +143,7 @@ def config_ipmi_info(sn):
             LOG.exception('failed to update IPMI ip/netmask/gw')
             raise errors.InspectionError('failed to update IPMI ip/netmask/gw')
 
-    tell_arobot_ipmi()
+    tell_arobot_ipmi(sn=sn)
     LOG.info('successfully set IPMI conf!')
 
 def inspect():
