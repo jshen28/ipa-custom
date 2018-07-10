@@ -68,15 +68,27 @@ def get_type_by_properties(properties):
 
 
 def config_raid():
-    # Only support MegaRAID
+    """
+    Configure RAID on this host, support LSI and PMC
+    RAID configuration is generated internally by each manager
+    :return: RAID configuration dict
+    """
 
     available_drivers = [mega.MegaHardwareManager, pmc.PmcHardwareManager]
 
     for driver in available_drivers:
         raid_manager = driver()
-        if raid_manager.evaluate_hardware_support() > hardware.HardwareSupport.NONE:
-            # let's define configure_node as default method for now
-            return raid_manager.configure_node()
+        try:
+            if raid_manager.evaluate_hardware_support() > hardware.HardwareSupport.NONE:
+                LOG.info('Configure RAID using %s' % driver)
+                # let's define configure_node as default method for now
+                return raid_manager.configure_node()
+        except Exception as e:
+            # try catch potential exceptions
+            # and return empty configuration dict
+            LOG.info(e)
+            return {}
+
 
 
 

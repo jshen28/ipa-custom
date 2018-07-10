@@ -186,7 +186,10 @@ def inspect():
             failures.add('collector %s failed: %s', name, exc)
 
     # Configure RAID
-    config_raid(data)
+    try:
+        config_raid(data)
+    except Exception:
+        pass
 
     # Optionally update IPMI credentials
     # setup_ipmi_credentials(resp)
