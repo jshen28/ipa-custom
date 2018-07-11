@@ -27,9 +27,10 @@ CONF = cfg.CONF
 JBOD_ON = '1'
 JBOD_OFF = '0'
 
+MEGACLI="/opt/MegaRAID/MegaCli/MegaCli64"
 
 def _detect_raid_card():
-    cmd = "/opt/MegaRAID/MegaCli/MegaCli64 -adpCount | grep Controller"
+    cmd = "%s -adpCount | grep Controller" % MEGACLI
     try:
         report, _e = utils.execute(cmd, shell=True)
         clounms = report.split(':')
@@ -102,7 +103,7 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
 
             LOG.info('Raid disk list:[%s]', disklist)
             if raid_level is not None and physical_disks is not None and controller is not None:
-                cmd = '/opt/MegaRAID/MegaCli/MegaCli64 -CfgLdAdd ' + '-r' \
+                cmd = ('%s -CfgLdAdd ' % MEGACLI) + '-r' \
                     + raid_level + "[" + disklist + "] " + "-a" + controller
 
                 LOG.info('Raid Configuration Command:%s', cmd)
@@ -115,7 +116,7 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
     def delete_configuration(self, node, ports):
 
        LOG.info('Begin to delete configuration')
-       cmd = '/opt/MegaRAID/MegaCli/MegaCli64 -CfgLdDel -LAll -a0'
+       cmd = '%s -CfgLdDel -LAll -a0' % MEGACLI
        report, _e = utils.execute(cmd, shell=True)
        target_raid_config = node.get('target_raid_config', {}).copy()
        return target_raid_config
@@ -150,7 +151,7 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
         else:
             raid_level = CONF.DB_computer_B.raid_level
 
-        cmd = '/opt/MegaRAID/MegaCli/MegaCli64 -CfgLdAdd ' + '-r' \
+        cmd = ('%s -CfgLdAdd ' % MEGACLI) + '-r' \
               + str(raid_level) + "[" + pd_list + "] " + "-a" + physical_disks[0].adapter_id
         utils.execute(cmd)
 
@@ -180,7 +181,7 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
                 "size": physical_drives[0]['Total Size'],
                 "level": "1",
                 "num": 2,
-                "type": "SSD"
+                "type": "SAS"
             }
         elif len(ssd) == 0:
             '''there is no SSD'''
@@ -260,7 +261,7 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
         Assume single RAID card
         :return:
         """
-        cmd = "/opt/MegaRAID/MegaCli/MegaCli64 -AdpGetProp EnableJBOD -a0 | grep -c \"Disabled\""
+        cmd = "%s -AdpGetProp EnableJBOD -a0 | grep -c \"Disabled\"" % MEGACLI
         result, _ = utils.execute(cmd, shell=True)
 
         # reconfigure mode only if mode conflict
@@ -269,7 +270,7 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
             return
 
         # enabling JBOD may require a reboot
-        cmd = "/opt/MegaRAID/MegaCli/MegaCli64 -AdpSetProp EnableJBOD %s -a0" % mode
+        cmd = "%s -AdpSetProp EnableJBOD %s -a0" % (MEGACLI, mode)
         utils.execute(cmd, shell=True)
 
     def configure_node(self):
@@ -322,7 +323,7 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
 
             # prepare configuration strings
             enclosure_device_list = ["%s:%s" % (val['Enclosure_Device_Id'], val['Slot_Id']) for i, val in candidates]
-            cmd = '/opt/MegaRAID/MegaCli/MegaCli64 -CfgLdAdd ' + '-r' \
+            cmd = ('%s -CfgLdAdd ' % MEGACLI) + '-r' \
                   + str(level) + "[" + ','.join(enclosure_device_list) + "] " + "-a" + '0'
             utils.execute(cmd)
 

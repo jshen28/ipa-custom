@@ -89,7 +89,7 @@ class PmcWorker(WorkerBase):
         :return:
         """
 
-        '''ignore last line'''
+        # ignore last line
         cmd_template = "arcconf getconfig %s PD | sed -ne '5,$p' | head -n -1"
         regexp = r'\s*Device #.*'
         self.controllers = []
@@ -148,7 +148,7 @@ class PmcWorker(WorkerBase):
             new_cmd = cmd % (i + 1)
             run_command(new_cmd)
 
-        '''uninitialize all pds'''
+        # uninitialize all pds
         cmd_uninit = "arcconf uninit %s all noprompt"
         for i in range(self.ctl_num):
             run_command(cmd_uninit % (i + 1))
@@ -180,6 +180,7 @@ class PmcWorker(WorkerBase):
     def gen_config(self):
         """
         generate configuration automatically
+        enumerate configuration by server's physical profile
         :return: configuration
         """
         ctl_num = self.ctl_num
@@ -194,7 +195,7 @@ class PmcWorker(WorkerBase):
                 "size": pds[0]['Total Size'],
                 "level": "1",
                 "num": 2,
-                "type": "SSD"
+                "type": "SAS"
             }
         elif len(ssd) == 0:
             '''there is no SSD'''
