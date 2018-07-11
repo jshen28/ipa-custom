@@ -56,6 +56,8 @@ def config_raid(data):
     #     LOG.error('Unknown server type, and can not configure RAID default.')
     #     return
 
+    LOG.info("Start configuring RAID")
+
     raid_config = raid_utils.config_raid()
     verify, cert = utils.get_ssl_client_options(CONF)
 
@@ -72,6 +74,7 @@ def config_raid(data):
     data['inventory']['disks'] = hardware.GenericHardwareManager().list_block_devices()
 
     # call back to ironic-inspector
+    LOG.info("Posting RAID configuration back to %s", raid_post_url)
     resp = requests.post(raid_post_url, json=json, cert=cert, verify=verify)
     if resp.status_code >= 400:
         LOG.error("arobot raid error %d: %s", resp.status_code, resp.content.decode('utf-8'))
@@ -189,7 +192,10 @@ def inspect():
             failures.add('collector %s failed: %s', name, exc)
 
     # Configure RAID
-    config_raid(data)
+    try:
+        config_raid(data)
+    except Exception:
+        pass
 
     # Optionally update IPMI credentials
     # setup_ipmi_credentials(resp)
