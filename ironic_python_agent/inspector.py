@@ -140,6 +140,11 @@ def config_ipmi_info(sn):
         ('lan', 'set', '1', 'ipaddr', ipmi_conf.get('ipmi_address')),
         ('lan', 'set', '1', 'netmask', ipmi_conf.get('ipmi_netmask')),
         ('lan', 'set', '1', 'defgw', 'ipaddr', ipmi_conf.get('ipmi_gateway')),
+        ('user', 'set', 'name', '5', 'inspur'),
+        ('user', 'set', 'password', '5', 'Czilpjhstcgx4Ru5'),
+        ('user', 'enable', '5'),
+        ('channel', 'setaccess', '1', '5',
+         'link=on', 'ipmi=on', 'callin=on', 'privilege=4'),
     ]
 
     for cmd in commands:
