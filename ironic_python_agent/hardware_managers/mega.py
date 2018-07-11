@@ -205,20 +205,20 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
                     "num": 2,
                     "type": "SAS"
                 }
-        elif len(ssd) == 2 and len(sas) == 2 and len(sata) == 0:
+        elif len(ssd) == 4 and len(sas) == 2 and len(sata) == 0:
             configuration['task1'] = {
-                "size": ssd[0]['Total Size'],
+                "size": sas[0]['Total Size'],
                 "level": "1",
                 "num": 2,
+                "type": "SAS"
+            }
+            configuration['task2'] = {
+                "size": ssd[0]['Total Size'],
+                "level": "5",
+                "num": 4,
                 "type": "SSD"
             }
-            configuration['task2'] = {
-                "size": sas[0]['Total Size'],
-                "level": "1",
-                "num": 2,
-                "type": "SAS"
-            }
-        elif len(ssd) == 2 and len(sas) == 2 and len(sata) != 0:
+        elif len(ssd) == 10 and len(sas) == 2:
             configuration['task1'] = {
                 "size": sas[0]['Total Size'],
                 "level": "1",
@@ -227,18 +227,20 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
             }
             configuration['task2'] = {
                 "size": ssd[0]['Total Size'],
-                "level": "1",
-                "num": 2,
+                "level": "5",
+                "num": 10,
                 "type": "SSD"
             }
 
-            if string_to_num(ssd[0]['Total Size']) > 700 * 1024:
-                configuration['task3'] = {
-                    "size": sata[0]['Total Size'],
-                    "level": "5",
-                    "num": len(sata),
-                    "type": "SATA"
-                }
+            # if string_to_num(ssd[0]['Total Size']) > 700 * 1024:
+            #     configuration['task3'] = {
+            #         "size": sata[0]['Total Size'],
+            #         "level": "5",
+            #         "num": len(sata),
+            #         "type": "SATA"
+            #     }
+        elif len(ssd) == 8:
+            pass
         elif len(ssd) == 4:
             configuration['task1'] = {
                 "size": ssd[0]['Total Size'],
@@ -279,53 +281,60 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
         :return:  raid_profile : a dict whose key is raid level and values are
                                  corresponding physical drives
         """
+        try:
+            # turn off jbod
+            self.set_jbod_mode(JBOD_OFF)
 
-        # delete existing configurations
-        self.delete_configuration()
+            # delete existing configurations
+            self.delete_configuration()
 
-        # list all existing physcial disks
-        physical_disks = hardware.list_all_physical_devices()
-        LOG.debug("all existing physical devices: %s", physical_disks)
+            # list all existing physcial disks
+            physical_disks = hardware.list_all_physical_devices()
+            LOG.debug("all existing physical devices: %s", physical_disks)
 
-        # generate configuration profile
-        configs = self.generate_logical_drive_configuration(physical_disks)
+            # generate configuration profile
+            configs = self.generate_logical_drive_configuration(physical_disks)
 
-        # if there are unconfigured disks available
-        # this implies that pass through mode is required
-        # then enable JBOD mode
-        if len(physical_disks) > sum([len(val) for key, val in configs.items()]):
-            LOG.debug('enable JBOD mode')
-            self.set_jbod_mode(JBOD_ON)
 
-        # add configuration in accordance to profile
-        for task_key in sorted(configs.keys()):
 
-            # fetch one configuration
-            task_config = configs[task_key]
+            # add configuration in accordance to profile
+            for task_key in sorted(configs.keys()):
 
-            size = task_config['size']          # physical drive raw size
-            level = task_config['level']        # raid level
-            num = task_config['num']            # number of disks
-            disk_type = task_config['type']     # disk type ssd, sas, sata
+                # fetch one configuration
+                task_config = configs[task_key]
 
-            # select raid candidates
-            candidates = sorted([(i, val) for i, val in enumerate(physical_disks)
-                                 if not disk_type or val.get('Type') == disk_type],
-                                key=lambda x: fabs(string_to_num(x[1]['Total Size']) - size))
+                size = task_config['size']          # physical drive raw size
+                level = task_config['level']        # raid level
+                num = task_config['num']            # number of disks
+                disk_type = task_config['type']     # disk type ssd, sas, sata
 
-            # select the first num feasible candidates
-            candidates = candidates[0:num]
+                # select raid candidates
+                candidates = sorted([(i, val) for i, val in enumerate(physical_disks)
+                                     if not disk_type or val.get('Type') == disk_type],
+                                    key=lambda x: fabs(string_to_num(x[1]['Total Size']) - size))
 
-            # delete selected pds from candidate list
-            # To avoid reindexing, delete backwads
-            for i, _ in sorted(candidates, key=lambda x: -x[0]):
-                del physical_disks[i]
+                # select the first num feasible candidates
+                candidates = candidates[0:num]
 
-            # prepare configuration strings
-            enclosure_device_list = ["%s:%s" % (val['Enclosure_Device_Id'], val['Slot_Id']) for i, val in candidates]
-            cmd = ('%s -CfgLdAdd ' % MEGACLI) + '-r' \
-                  + str(level) + "[" + ','.join(enclosure_device_list) + "] " + "-a" + '0'
-            utils.execute(cmd)
+                # delete selected pds from candidate list
+                # To avoid reindexing, delete backwads
+                for i, _ in sorted(candidates, key=lambda x: -x[0]):
+                    del physical_disks[i]
+
+                # prepare configuration strings
+                enclosure_device_list = ["%s:%s" % (val['Enclosure_Device_Id'], val['Slot_Id']) for i, val in candidates]
+                cmd = ('%s -CfgLdAdd ' % MEGACLI) + '-r' \
+                      + str(level) + "[" + ','.join(enclosure_device_list) + "] WB RA Cached " + "-a" + '0'
+                utils.execute(cmd)
+
+            # if there are unconfigured disks available
+            # this implies that pass through mode is required
+            # then enable JBOD mode
+            if len(physical_disks) > sum([len(val) for key, val in configs.items()]):
+                LOG.debug('enable JBOD mode')
+                self.set_jbod_mode(JBOD_ON)
+        except Exception as e:
+            LOG.INFO('raid configuration failed, %s' % e)
 
         # list all existing logical drives
         physical_disks = hardware.list_all_physical_devices()
