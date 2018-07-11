@@ -90,9 +90,12 @@ def call_arobot(sn):
         return
 
     ret = resp.json()
-    if ret.get('return_value') == '0':
+    if ret.get('return_value') == 'NotFound' or \
+        ret.get('return_value') == 'UnknownERR':
         LOG.warning('arobot api call ok, but no valid ipmi conf. Loop go on!')
         return
+    elif ret.get('return_value') == 'Success':
+        LOG.warning('arobot api call ok, but already conf OK. Break loop!')
 
     return ret
 
@@ -116,12 +119,15 @@ def config_ipmi_info(sn):
     index = 1
     while True:
         ipmi_conf = call_arobot(sn)
-        if ipmi_conf:
+        if ipmi_conf.get('return_value') == 'NeedConf':
             LOG.info('Got ipmi conf OK! address %s, netmask %s, gateway %s',
                      ipmi_conf.get('ipmi_address'),
                      ipmi_conf.get('ipmi_netmask'),
                      ipmi_conf.get('ipmi_gateway'))
             break
+        elif ipmi_conf.get('return_value') == 'Success':
+            LOG.info('IPMI info already confed!')
+            return
         LOG.info('%s times', index)
         time.sleep(interval)
         index += 1
