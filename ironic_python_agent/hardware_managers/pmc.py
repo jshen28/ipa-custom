@@ -1,8 +1,10 @@
 import subprocess
 import re
 from math import fabs
+from oslo_log import log
 from ironic_python_agent import hardware
 
+LOG = log.getLogger()
 
 def string_to_num(num_string):
 
@@ -89,7 +91,7 @@ class PmcWorker(WorkerBase):
         :return:
         """
 
-        '''ignore last line'''
+        # ignore last line
         cmd_template = "arcconf getconfig %s PD | sed -ne '5,$p' | head -n -1"
         regexp = r'\s*Device #.*'
         self.controllers = []
@@ -148,7 +150,7 @@ class PmcWorker(WorkerBase):
             new_cmd = cmd % (i + 1)
             run_command(new_cmd)
 
-        '''uninitialize all pds'''
+        # uninitialize all pds
         cmd_uninit = "arcconf uninit %s all noprompt"
         for i in range(self.ctl_num):
             run_command(cmd_uninit % (i + 1))
@@ -180,6 +182,7 @@ class PmcWorker(WorkerBase):
     def gen_config(self):
         """
         generate configuration automatically
+        enumerate configuration by server's physical profile
         :return: configuration
         """
         ctl_num = self.ctl_num
@@ -194,7 +197,7 @@ class PmcWorker(WorkerBase):
                 "size": pds[0]['Total Size'],
                 "level": "1",
                 "num": 2,
-                "type": "SSD"
+                "type": "SAS"
             }
         elif len(ssd) == 0:
             '''there is no SSD'''
@@ -211,20 +214,20 @@ class PmcWorker(WorkerBase):
                     "num": 8,
                     "type": "SATA"
                 }
-        elif len(ssd) == 2 and len(sas) == 2 and len(sata) == 0:
+        elif len(ssd) == 4 and len(sas) == 2 and len(sata) == 0:
             configuration['task1'] = {
-                "size": ssd[0]['Total Size'],
+                "size": sas[0]['Total Size'],
                 "level": "1",
                 "num": 2,
+                "type": "SAS"
+            }
+            configuration['task2'] = {
+                "size": ssd[0]['Total Size'],
+                "level": "5",
+                "num": 4,
                 "type": "SSD"
             }
-            configuration['task2'] = {
-                "size": sas[0]['Total Size'],
-                "level": "1",
-                "num": 2,
-                "type": "SAS"
-            }
-        elif len(ssd) == 2 and len(sas) == 2 and len(sata) != 0:
+        elif len(ssd) == 10 and len(sas) == 2:
             configuration['task1'] = {
                 "size": sas[0]['Total Size'],
                 "level": "1",
@@ -233,18 +236,18 @@ class PmcWorker(WorkerBase):
             }
             configuration['task2'] = {
                 "size": ssd[0]['Total Size'],
-                "level": "1",
-                "num": 2,
+                "level": "5",
+                "num": 10,
                 "type": "SSD"
             }
 
-            if string_to_num(ssd[0]['Total Size']) > 700 * 1024:
-                configuration['task3'] = {
-                    "size": sata[0]['Total Size'],
-                    "level": "5",
-                    "num": len(sata),
-                    "type": "SATA"
-                }
+            # if string_to_num(ssd[0]['Total Size']) > 700 * 1024:
+            #     configuration['task3'] = {
+            #         "size": sata[0]['Total Size'],
+            #         "level": "5",
+            #         "num": len(sata),
+            #         "type": "SATA"
+            #     }
         elif len(ssd) == 4:
             configuration['task1'] = {
                 "size": ssd[0]['Total Size'],
@@ -275,7 +278,7 @@ class PmcWorker(WorkerBase):
         def get_channel_device_pair(str_input):
             return tuple(str_input.split('(')[0].split(','))
 
-        cmd_template = "arcconf create %s logicaldrive MAX %s %s noprompt"
+        cmd_template = "arcconf create %s logicaldrive Mehtod QUICK Rcache RON Wcache WBB MAX %s %s noprompt"
         for key in sorted(self.config.keys()):
             config = self.config[key]
             size = string_to_num(config.get('size'))
@@ -402,10 +405,13 @@ class PmcHardwareManager(hardware.GenericHardwareManager):
     def configure_node(self):
 
         # configure raid
-        pmc = PmcWorker()
-        pmc.clear_previous_configs()
-        pmc.generate_pd_profile()
-        pmc.config_node()
+        try:
+            pmc = PmcWorker()
+            pmc.clear_previous_configs()
+            pmc.generate_pd_profile()
+            pmc.config_node()
+        except Exception as e:
+            log.INFO('RAID configuration failed %s' % e)
 
         # dump raid configuration
         # {
