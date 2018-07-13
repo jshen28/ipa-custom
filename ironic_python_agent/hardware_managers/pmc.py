@@ -255,12 +255,12 @@ class PmcWorker(WorkerBase):
                 "num": 2,
                 "type": "SSD"
             }
-            configuration['task2'] = {
-                "size": ssd[0]['Total Size'],
-                "level": "1",
-                "num": 2,
-                "type": "SSD"
-            }
+            #configuration['task2'] = {
+            #    "size": ssd[0]['Total Size'],
+            #    "level": "1",
+            #    "num": 2,
+            #    "type": "SSD"
+            #}
 
         return configuration
 
@@ -278,7 +278,7 @@ class PmcWorker(WorkerBase):
         def get_channel_device_pair(str_input):
             return tuple(str_input.split('(')[0].split(','))
 
-        cmd_template = "arcconf create %s logicaldrive Mehtod QUICK Rcache RON Wcache WBB MAX %s %s noprompt"
+        cmd_template = "arcconf create %s logicaldrive Rcache RON Wcache WBB MAX %s %s noprompt"
         for key in sorted(self.config.keys()):
             config = self.config[key]
             size = string_to_num(config.get('size'))
