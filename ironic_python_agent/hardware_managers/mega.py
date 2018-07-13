@@ -256,7 +256,6 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
             }
         return configuration
 
-    @staticmethod
     def set_jbod_mode(self, mode):
         """
         By default, LSI does not support JBOD, so enabling JBOD mode is mandatory
