@@ -82,6 +82,8 @@ def config_raid():
             if raid_manager.evaluate_hardware_support() > hardware.HardwareSupport.NONE:
                 LOG.info('Configure RAID using %s' % driver)
                 # let's define configure_node as default method for now
+                # configuration could fail, but hardware information should be
+                # successfully pulled out nonetheless
                 return raid_manager.configure_node()
         except Exception as e:
             # try catch potential exceptions

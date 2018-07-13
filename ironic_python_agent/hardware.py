@@ -18,6 +18,7 @@ import functools
 import os
 import shlex
 import time
+import re
 
 from ironic_lib import disk_utils
 from ironic_lib import utils as il_utils
@@ -241,7 +242,10 @@ def list_all_physical_devices(block_type='disk'):
                     if j % 5 == 0:
                         # Inquiry Data: Manufacturer & Series Number
                         device['Model'] = lines[j].split(':')[1].strip()
-                        devices.append(device.copy())
+                        copy = device.copy()
+                        if re.search(r'SSD', copy['Model']) is not None:
+                            copy['Type'] = 'SSD'
+                        devices.append(copy)
 
     return devices
 

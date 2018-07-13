@@ -113,13 +113,11 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
 
         return target_raid_config
 
-    def delete_configuration(self, node, ports):
+    def delete_configuration(self):
 
        LOG.info('Begin to delete configuration')
        cmd = '%s -CfgLdDel -LAll -a0' % MEGACLI
        report, _e = utils.execute(cmd, shell=True)
-       target_raid_config = node.get('target_raid_config', {}).copy()
-       return target_raid_config
 
     def _check_before_config(self, physical_disks):
         adp_list = []
@@ -248,12 +246,12 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
                 "num": 2,
                 "type": "SSD"
             }
-            configuration['task2'] = {
-                "size": ssd[0]['Total Size'],
-                "level": "1",
-                "num": 2,
-                "type": "SSD"
-            }
+            #configuration['task2'] = {
+            #    "size": ssd[0]['Total Size'],
+            #    "level": "1",
+            #    "num": 2,
+            #    "type": "SSD"
+            #}
         return configuration
 
     def set_jbod_mode(self, mode):
@@ -262,13 +260,13 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
         Assume single RAID card
         :return:
         """
-        cmd = "%s -AdpGetProp EnableJBOD -a0 | grep -c \"Disabled\"" % MEGACLI
-        result, _ = utils.execute(cmd, shell=True)
+        #cmd = "%s -AdpGetProp EnableJBOD -a0 | grep -c \"Disabled\"" % MEGACLI
+        #result, _ = utils.execute(cmd, shell=True)
 
         # reconfigure mode only if mode conflict
-        if mode == JBOD_ON and int(result) == 0 \
-                or mode == JBOD_OFF and int(result) == 1:
-            return
+        #if mode == JBOD_ON and int(result) == 0 \
+        #        or mode == JBOD_OFF and int(result) == 1:
+        #    return
 
         # enabling JBOD may require a reboot
         cmd = "%s -AdpSetProp EnableJBOD %s -a0" % (MEGACLI, mode)
@@ -310,7 +308,7 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
                 # select raid candidates
                 candidates = sorted([(i, val) for i, val in enumerate(physical_disks)
                                      if not disk_type or val.get('Type') == disk_type],
-                                    key=lambda x: fabs(string_to_num(x[1]['Total Size']) - size))
+                                    key=lambda x: fabs(string_to_num(x[1]['Total Size']) - string_to_num(size)))
 
                 # select the first num feasible candidates
                 candidates = candidates[0:num]
@@ -324,7 +322,7 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
                 enclosure_device_list = ["%s:%s" % (val['Enclosure_Device_Id'], val['Slot_Id']) for i, val in candidates]
                 cmd = ('%s -CfgLdAdd ' % MEGACLI) + '-r' \
                       + str(level) + "[" + ','.join(enclosure_device_list) + "] WB RA Cached " + "-a" + '0'
-                utils.execute(cmd)
+                utils.execute(cmd, shell=True)
 
             # if there are unconfigured disks available
             # this implies that pass through mode is required
