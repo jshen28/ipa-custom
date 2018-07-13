@@ -122,13 +122,15 @@ def config_ipmi_info(sn):
     index = 1
     while True:
         ipmi_conf = call_arobot(sn)
-        if ipmi_conf.get('return_value') == 'NeedConf':
+        if ipmi_conf is not None and \
+                ipmi_conf.get('return_value') == 'NeedConf':
             LOG.info('Got ipmi conf OK! address %s, netmask %s, gateway %s',
                      ipmi_conf.get('ipmi_address'),
                      ipmi_conf.get('ipmi_netmask'),
                      ipmi_conf.get('ipmi_gateway'))
             break
-        elif ipmi_conf.get('return_value') == 'Success':
+        elif ipmi_conf is not None and \
+                ipmi_conf.get('return_value') == 'Success':
             LOG.info('IPMI info already confed!')
             return
         LOG.info('%s times', index)
