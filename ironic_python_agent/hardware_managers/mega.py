@@ -344,9 +344,9 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
         for logical_drive in logical_drives:
             if raid_profile.get(logical_drive['Raid_Level']) is None:
                 raid_profile[logical_drive['Raid_Level']] = []
-            for drive in logical_drives:
+            for drive in logical_drive['drives']:
                 del physical_disk_dict[drive['Model']]
-            raid_profile[logical_drive['Raid_Level']].append(logical_drive.drivers)
+            raid_profile[logical_drive['Raid_Level']].append(logical_drive['drives'])
 
         for key, val in physical_disk_dict.items():
             if raid_profile.get('RAW') is None:
