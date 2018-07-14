@@ -82,10 +82,10 @@ def config_raid(data):
                 LOG.error("arobot raid error %d: %s", resp.status_code, resp.content.decode('utf-8'))
         except Exception as e:
             LOG.error(e)
+            time.sleep(5)
             continue
-        else:
-            LOG.info('request ok')
-            break
+        LOG.info('request ok')
+        break
 
 
 def call_arobot(sn):
