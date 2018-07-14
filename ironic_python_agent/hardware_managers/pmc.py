@@ -360,7 +360,7 @@ class PmcWorker(WorkerBase):
             if re.match(r'^\s*$', line):
                 continue
 
-            if 'Logical device number' in line:
+            if 'Logical Device number' in line:
                 if len(ld.keys()) != 0:
                     self.lds.append(ld)
                     ld = {}
