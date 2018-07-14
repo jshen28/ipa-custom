@@ -339,8 +339,13 @@ def list_all_virtual_drives():
             # remove the trailing empty dict from pdisk list
             pdisks.pop(drivecount)
             copy = drive.copy()
-            if re.search(r'SSD', copy['Model']) is not None:
-                copy['Type'] = 'SSD'
+            drives = copy['drives']
+
+            # modify 'Type'
+            for drive in drives:
+                if re.search(r'SSD', drive['Model']) is not None:
+                    drive['Type'] = 'SSD'
+
             virtualdrives.append(copy)
     LOG.info('The Virtual Drive Info:[%s]', virtualdrives)
 
