@@ -108,7 +108,15 @@ def tell_arobot_ipmi(sn):
     verify, cert = utils.get_ssl_client_options(CONF)
     # arobot_callback_url like http://172.23.4.111:9876/v1
     ipmi_get_url = CONF.arobot_callback_url + '/ipmi_conf/' + sn
-    resp = requests.put(ipmi_get_url, verify=verify, cert=cert)
+    while True:
+        try:
+            resp = requests.put(ipmi_get_url, verify=verify, cert=cert)
+        except Exception as e:
+            LOG.info('Got exception %s', e)
+            continue
+        else:
+            LOG.info('Put ok')
+            break
 
 def config_ipmi_info(sn):
 
