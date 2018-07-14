@@ -193,14 +193,14 @@ class PmcWorker(WorkerBase):
 
         if len(pds) == 2:
             configuration['task1'] = {
-                '''both PDs will have same size'''
+                # both PDs will have same size
                 "size": pds[0]['Total Size'],
                 "level": "1",
                 "num": 2,
                 "type": "SAS"
             }
         elif len(ssd) == 0:
-            '''there is no SSD'''
+            # there is no SSD
             if len(sas) == 2 and len(sata) == 8:
                 configuration['task1'] = {
                     "size": sas[0]['Total Size'],
