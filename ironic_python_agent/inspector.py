@@ -75,9 +75,17 @@ def config_raid(data):
 
     # call back to ironic-inspector
     LOG.info("Posting RAID configuration back to %s", raid_post_url)
-    resp = requests.post(raid_post_url, json=json, cert=cert, verify=verify)
-    if resp.status_code >= 400:
-        LOG.error("arobot raid error %d: %s", resp.status_code, resp.content.decode('utf-8'))
+    while True:
+        try:
+            resp = requests.post(raid_post_url, json=json, cert=cert, verify=verify)
+            if resp.status_code >= 400:
+                LOG.error("arobot raid error %d: %s", resp.status_code, resp.content.decode('utf-8'))
+        except Exception as e:
+            LOG.error(e)
+            continue
+        else:
+            LOG.info('request ok')
+            break
 
 
 def call_arobot(sn):
