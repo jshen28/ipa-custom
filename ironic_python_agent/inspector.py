@@ -84,9 +84,8 @@ def config_raid(data):
             LOG.error(e)
             time.sleep(5)
             continue
-        else:
-            LOG.info('request ok')
-            break
+        LOG.info('request ok')
+        break
 
 
 def call_arobot(sn):
