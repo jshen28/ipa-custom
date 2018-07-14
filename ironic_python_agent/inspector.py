@@ -121,7 +121,15 @@ def config_ipmi_info(sn):
     interval = 5
     index = 1
     while True:
-        ipmi_conf = call_arobot(sn)
+        ipmi_conf = None
+        try:
+            ipmi_conf = call_arobot(sn)
+        except Exception as e:
+            LOG.info('Got exception %s', e)
+            LOG.info('%s times', index)
+            time.sleep(interval)
+            index += 1
+            continue
         if ipmi_conf is not None and \
                 ipmi_conf.get('return_value') == 'NeedConf':
             LOG.info('Got ipmi conf OK! address %s, netmask %s, gateway %s',
@@ -214,7 +222,7 @@ def inspect():
 
     if resp is None:
         LOG.info('stopping inspection, as inspector returned an error')
-        return
+        # return
 
     # Call arobot API to get ipmi configurations
     # Get sn
