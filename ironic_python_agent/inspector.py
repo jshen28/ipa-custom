@@ -225,27 +225,38 @@ def inspect():
     # Configure RAID
     try:
         config_raid(data)
-    except Exception:
-        pass
+    except Exception as e:
+        LOG.info(e)
 
     # Optionally update IPMI credentials
     # setup_ipmi_credentials(resp)
 
-    resp = call_inspector(data, failures)
+    # resp = call_inspector(data, failures)
 
     # Now raise everything we were delaying
-    failures.raise_if_needed()
+    # failures.raise_if_needed()
 
-    if resp is None:
-        LOG.info('stopping inspection, as inspector returned an error')
+    # if resp is None:
+    #     LOG.info('stopping inspection, as inspector returned an error')
         # return
 
     # Call arobot API to get ipmi configurations
     # Get sn
-    sn = data.get('inventory').get('system_vendor').serial_number
-    config_ipmi_info(sn)
+    # sn = data.get('inventory').get('system_vendor').serial_number
+    # config_ipmi_info(sn)
     LOG.info('inspection finished successfully')
-    return resp.get('uuid')
+    while True:
+        try:
+            # assume on unix system
+            retr = os.system('sudo shutdown now')
+            if retr == 0:
+                time.sleep(1000)
+                break
+        except Exception as e:
+            LOG.info(e)
+
+    return "my-uuid"
+    # return resp.get('uuid')
 
 
 def call_inspector(data, failures):
