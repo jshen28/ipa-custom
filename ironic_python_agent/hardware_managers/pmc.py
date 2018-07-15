@@ -411,7 +411,7 @@ class PmcHardwareManager(hardware.GenericHardwareManager):
             pmc.generate_pd_profile()
             pmc.config_node()
         except Exception as e:
-            log.INFO('RAID configuration failed %s' % e)
+            LOG.info('RAID configuration failed')
 
         # dump raid configuration
         # {
