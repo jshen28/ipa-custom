@@ -209,6 +209,12 @@ cli_opts = [
                     'Must be provided together with "certfile" option. '
                     'Default is to not present any client certificates to '
                     'the server.'),
+    cfg.BoolOpt('disable_raid_config',
+                default=True,
+                help='indicate if configuring RAID is disabled'
+                'by default, raid configuration is disabled'
+                'set it to False to enable auto RAID configuration'
+                )
 ]
 
 front_ops = [
