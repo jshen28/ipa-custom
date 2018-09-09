@@ -56,15 +56,34 @@ def config_raid(data):
     #     LOG.error('Unknown server type, and can not configure RAID default.')
     #     return
 
+    sn = data.get('inventory').get('system_vendor').serial_number
+    verify, cert = utils.get_ssl_client_options(CONF)
+
+    # retrieve raid configuration info from arobot server
+    raid_get_url = CONF.arobot_callback_url + ('/raid_conf/%s' % sn)
+    resp = requests.get(raid_get_url, cert=cert, verify=verify)
+    config = resp.json()
+
+    if resp.status_code >= 400:
+        LOG.error('error fetching raid configuration')
+        return
+
+    if config is None:
+        LOG.error('configuration should never be None')
+        return
+
+    if config['is_ok']:
+        LOG.info('sn: %s has been already been configured. Pass' % config.get('sn', ''))
+        return
+
+    # start configuring if raid has not been configured properly
     LOG.info("Start configuring RAID")
 
     raid_config = raid_utils.config_raid()
-    verify, cert = utils.get_ssl_client_options(CONF)
-
     # call back and save raid configurations
     raid_post_url = CONF.arobot_callback_url + '/raid_conf'
     json = {
-        'sn': data.get('inventory').get('system_vendor').serial_number,
+        'sn': sn,
         'config': raid_config
     }
 
@@ -223,10 +242,13 @@ def inspect():
             failures.add('collector %s failed: %s', name, exc)
 
     # Configure RAID
-    # try:
-    #     config_raid(data)
-    # except Exception:
-    #     pass
+    try:
+        if not CONF.disable_raid_config:
+            config_raid(data)
+        else:
+            LOG.info('raid configuration has been disabled, enable it if need')
+    except Exception as e:
+        LOG.error(e)
 
     # Optionally update IPMI credentials
     # setup_ipmi_credentials(resp)
