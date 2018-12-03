@@ -182,7 +182,7 @@ class MegaHardwareManager(hardware.GenericHardwareManager):
                 "type": "SAS"
             }
         elif len(ssd) == 0:
-            '''there is no SSD'''
+            # there is no SSD
             if len(sas) == 2 and len(sata) == 8:
                 configuration['task1'] = {
                     "size": sas[0]['Total Size'],
