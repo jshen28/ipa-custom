@@ -245,6 +245,9 @@ def inspect():
     try:
         if not CONF.disable_raid_config:
             config_raid(data)
+
+            if CONF.shutdown_server_after_raid:
+                os.system("shutdown now")
         else:
             LOG.info('raid configuration has been disabled, enable it if need')
     except Exception as e:
