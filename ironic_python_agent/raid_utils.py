@@ -3,7 +3,7 @@
 from oslo_config import cfg
 from oslo_log import log as logging
 
-from ironic_python_agent.hardware_managers import mega, pmc
+from ironic_python_agent.hardware_managers import mega, pmc, sas3irc
 from ironic_python_agent import hardware
 
 LOG = logging.getLogger(__name__)
@@ -74,7 +74,7 @@ def config_raid():
     :return: RAID configuration dict
     """
 
-    available_drivers = [mega.MegaHardwareManager, pmc.PmcHardwareManager]
+    available_drivers = [mega.MegaHardwareManager, pmc.PmcHardwareManager, sas3irc.SAS3IRCManager]
 
     for driver in available_drivers:
         raid_manager = driver()
@@ -90,6 +90,8 @@ def config_raid():
             # and return empty configuration dict
             LOG.info(e)
             return {}
+    else:
+        raise Exception("no valid manager found")
 
 
 
