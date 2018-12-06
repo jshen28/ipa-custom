@@ -243,7 +243,7 @@ def list_all_physical_devices(block_type='disk'):
                         # Inquiry Data: Manufacturer & Series Number
                         device['Model'] = lines[j].split(':')[1].strip()
                         copy = device.copy()
-                        if re.search(r'SSD', copy['Model']) is not None:
+                        if re.search(r'SSD|Micron_5200', copy['Model']) is not None:
                             copy['Type'] = 'SSD'
                         devices.append(copy)
 
@@ -285,12 +285,12 @@ def list_all_virtual_drives():
 
     virtualdrives = []
     for j in range(0, adaptercount):
-        drive = {}
         predrivenum = 0
         index = numofdisklist[j]["Index"]
         LOG.info('Index:%s Continuing', index)
         LOG.info('Virtual_Num:%s Continuing', numofdisklist[j]["Virtual_Drive_NUM"])
         for l in range(0, numofdisklist[j]["Virtual_Drive_NUM"]):
+            drive = {}
             print "virtualstart:"
             print index + 4 * l + 5 * predrivenum + 4
 
@@ -343,7 +343,7 @@ def list_all_virtual_drives():
 
             # modify 'Type'
             for drive in drives:
-                if re.search(r'SSD', drive['Model']) is not None:
+                if re.search(r'SSD|Micron_5200', drive['Model']) is not None:
                     drive['Type'] = 'SSD'
 
             virtualdrives.append(copy)
