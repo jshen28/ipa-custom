@@ -214,6 +214,11 @@ cli_opts = [
                 help='indicate if configuring RAID is disabled'
                 'by default, raid configuration is disabled'
                 'set it to False to enable auto RAID configuration'
+                ),
+    cfg.BoolOpt('shutdown_server_after_raid',
+                default=True,
+                help='indicate if shut down server after RAID is configured'
+                'by default, server will be turned off'
                 )
 ]
 
